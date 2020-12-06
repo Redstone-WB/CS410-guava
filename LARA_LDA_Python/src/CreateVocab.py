@@ -61,6 +61,10 @@ def load_all_json_files(jsonfolder, suffix):
 
 
 class CreateVocab:
+    def __init__(self, is_dev_mode):
+        self.is_dev_mode = is_dev_mode
+        print("is_dev_mode: {}".format(is_dev_mode))
+
     def create_stopwords(self):
         init_stopwords = [stemmer.stem(v) for v in stopwords.words('english')]
         additional_stopwords = ["'s", "...", "'ve",
@@ -91,7 +95,7 @@ class CreateVocab:
 
         # term_freq is a dictionary
         for k, v in term_freq.items():
-            if v > 5:  # only if term frequency is over 5, added to Vocab
+            if self.is_dev_mode or v > 5:  # only if term frequency is over 5, added to Vocab
                 Vocab.append(k)  # appending key (word)
                 Count.append(v)  # appending value (counts)
 
