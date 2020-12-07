@@ -56,19 +56,29 @@ class Vector4Review:
                 word_freq[word_id] += 1
 
         self.m_aspectV = []
+        # for i in range(self.m_k):
+        #     if i in aspect_word_freq:
+        #         word_freq = aspect_word_freq[i]
+        #         spa_index = []  # index must start from 1
+        #         spa_value = []
+        #         for word_info in sorted(word_freq.items()):
+        #             word_id = word_info[0]
+        #             word_cnt = word_info[1]
+        #             spa_index.append(word_id + 1)
+        #             spa_value.append(word_cnt)
+        #         spa_vector = SpaVector(spa_index, spa_value)
+        #     else:
+        #         spa_vector = SpaVector([], [])
+        #     self.m_aspectV.append(spa_vector)
+
         for i in range(self.m_k):
-            if i in aspect_word_freq:
-                word_freq = aspect_word_freq[i]
-                spa_index = []  # index must start from 1
-                spa_value = []
-                for word_info in sorted(word_freq.items()):
-                    word_id = word_info[0]
-                    word_cnt = word_info[1]
-                    spa_index.append(word_id + 1)
-                    spa_value.append(word_cnt)
-                spa_vector = SpaVector(spa_index, spa_value)
-            else:
-                spa_vector = SpaVector([], [])
+            spa_index = []  # index must start from 1
+            spa_value = []
+            for w in review.UniWord:
+                topic_word_score = aspect_model.topic_word[i][w]
+                spa_index.append(1 + w)
+                spa_value.append(topic_word_score)
+            spa_vector = SpaVector(spa_index, spa_value)
             self.m_aspectV.append(spa_vector)
 
         self.m_aspect_rating = np.zeros(self.m_k, dtype=np.float64)
@@ -113,5 +123,5 @@ class Vector4Review:
 
         norm = Utilities.exp_sum(self.m_alpha_hat)
         for i in range(self.m_k):
-            self.m_alpha = np.exp(self.m_alpha_hat[i])/norm
+            self.m_alpha[i] = np.exp(self.m_alpha_hat[i])/norm
 

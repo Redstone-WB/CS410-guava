@@ -48,6 +48,7 @@ class LRR:
                 ratings = np.insert(ratings, 0, review.Overall)
                 v4review = Vector4Review(review, ratings, is_train, self.aspect_model)
                 v4review.normalize()
+                # print("[NORMALIZE] {} {}".format(v4review.m_ID, v4review.m_alpha))
                 self.m_collection.append(v4review)
 
     def init(self, voca_size):
@@ -61,7 +62,7 @@ class LRR:
         likelihood = 0
         old_likelihood = self.MStep(False)
 
-        while iter < np.min(8, max_iter) or (iter < max_iter and diff > converge):
+        while iter < max_iter or (iter < max_iter and diff > converge):
             alpha_exp = 0
             alpha_cov = 0
 
@@ -73,7 +74,7 @@ class LRR:
                         alpha_cov += 1
                     elif tag == -2:  # failed with exceptions
                         alpha_exp += 1
-            print("{}\t".format(iter))
+            print("[Iteration] {}".format(iter))
 
             # M-step
             likelihood = self.MStep(iter % 4 == 3)
@@ -124,7 +125,7 @@ class LRR:
         self.m_g_alpha.fill(0)
 
         for i in range(self.m_k):
-            vct.m_alpha = np.exp(vct.m_alpha_hat[i])/expsum  # map to aspect weight
+            vct.m_alpha[i] = np.exp(vct.m_alpha_hat[i])/expsum  # map to aspect weight
 
             overall_rating += vct.m_alpha[i] * vct.m_aspect_rating[i]  # estimate the overall rating
             self.m_alpha_cache[i] = vct.m_alpha_hat[i] - self.m_model.m_mu[i]  # difference with prior
@@ -222,10 +223,10 @@ class LRR:
         for i in range(self.m_k):
             self.m_diag_alpha[i] /= self.m_train_size
             if i == 0 and update_sigma:
-                print("*")
+                print("[MStep] *")
 
             # mean and variance of \hat\alpha
-            print("{}:{}\t".format(self.m_model.m_mu[i], self.m_diag_alpha[i]))
+            print("[MStep] aspect={}, mu={}, diag_alpha={}\t".format(i, self.m_model.m_mu[i], self.m_diag_alpha[i]))
 
     def ml_beta(self):
         f = 0
@@ -243,7 +244,7 @@ class LRR:
         self.m_diag_beta.fill(0)
         while True:
             if icall%1000 == 0:
-                print(".")  # keep track of beta update
+                print("[MStep] ml_beta update: icall={}".format(icall))  # keep track of beta update
             f = self.get_beta_obj_gradient()  # to be minimized
             # lbfgs(n, m, self.m_beta, f, self.m_g_beta, False, self.m_diag_beta, iprint, self.m_beta_tol, 1e-20, iflag)
 
@@ -251,7 +252,7 @@ class LRR:
             if not (iflag[0] != 0 and icall <= self.m_beta_step):
                 break
 
-        print(icall + "\t")
+        print("[MStep] ml_beta update: icall={}".format(icall))
         for i in range(self.m_model.m_k):
             pos = i * (self.m_model.m_v + 1)
             for j in range(self.m_model.m_v + 1):
@@ -263,7 +264,7 @@ class LRR:
     def get_beta_prior_obj(self):
         likelihood = 0
         for i in range(len(self.m_model.m_beta)):
-            for j in range(len(self.m_model.m_beat[i])):
+            for j in range(len(self.m_model.m_beta[i])):
                 likelihood += self.m_model.m_beta[i][j] * self.m_model.m_beta[i][j]
 
         return self.m_lambda * likelihood
@@ -345,14 +346,14 @@ class LRR:
 
         # MSE for overall rating, MSE for aspect rating, item level correlation, aspect level correlation
         if iError:
-            print('x')
+            print('[Evaluation] iError=x (Error)')
         else:
-            print('o')
+            print('[Evaluation] iError=o (No Error)')
         if aError:
-            print('x')
+            print('[Evaluation] aError=x (Error)')
         else:
-            print('o')
-        print("{}\t{}\t{}\t{}".format(
+            print('[Evaluation] aError=o (No Error)')
+        print("[Evaluation] oMSE={}, aMSE={}, icorr={}, acorr={}".format(
             np.sqrt(oMSE/self.m_test_size),
             np.sqrt(aMSE/self.m_test_size),
             (icorr/self.m_test_size),

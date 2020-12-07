@@ -10,7 +10,7 @@ def exp_sum(values):
     _sum = 0
     for v in values:
         _sum += np.exp(v)
-    return v
+    return _sum
 
 
 def MSE(pred, answer, offset):
