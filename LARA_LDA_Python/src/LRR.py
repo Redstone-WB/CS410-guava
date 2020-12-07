@@ -205,6 +205,8 @@ class LRR:
         self.m_model.m_delta = datalikelihood / self.m_train_size
         datalikelihood /= old_delta
 
+        print("[MStep] alpha_likelihood={}, beta_likelihood={}, data_likelihood={}, auxdata={}, delta={}".format(
+            alpha_likelihood, beta_likelihood, datalikelihood, auxdata, np.log(self.m_model.m_delta)))
         return alpha_likelihood + beta_likelihood + datalikelihood + auxdata + np.log(self.m_model.m_delta)
 
     def test_alpha_variance(self, update_sigma):
@@ -223,10 +225,10 @@ class LRR:
         for i in range(self.m_k):
             self.m_diag_alpha[i] /= self.m_train_size
             if i == 0 and update_sigma:
-                print("[MStep] *")
+                print("[MStep] update_sigma")
 
             # mean and variance of \hat\alpha
-            print("[MStep] aspect={}, mu={}, diag_alpha={}\t".format(i, self.m_model.m_mu[i], self.m_diag_alpha[i]))
+            # print("[MStep] aspect={}, mu={}, diag_alpha={}\t".format(i, self.m_model.m_mu[i], self.m_diag_alpha[i]))
 
     def ml_beta(self):
         f = 0
@@ -243,8 +245,8 @@ class LRR:
 
         self.m_diag_beta.fill(0)
         while True:
-            if icall%1000 == 0:
-                print("[MStep] ml_beta update: icall={}".format(icall))  # keep track of beta update
+            # if icall%1000 == 0:
+            #     print("[MStep] ml_beta update: icall={}".format(icall))  # keep track of beta update
             f = self.get_beta_obj_gradient()  # to be minimized
             # lbfgs(n, m, self.m_beta, f, self.m_g_beta, False, self.m_diag_beta, iprint, self.m_beta_tol, 1e-20, iflag)
 
@@ -252,7 +254,7 @@ class LRR:
             if not (iflag[0] != 0 and icall <= self.m_beta_step):
                 break
 
-        print("[MStep] ml_beta update: icall={}".format(icall))
+        # print("[MStep] ml_beta update: icall={}".format(icall))
         for i in range(self.m_model.m_k):
             pos = i * (self.m_model.m_v + 1)
             for j in range(self.m_model.m_v + 1):
@@ -345,19 +347,19 @@ class LRR:
                 aError = True
 
         # MSE for overall rating, MSE for aspect rating, item level correlation, aspect level correlation
-        if iError:
-            print('[Evaluation] iError=x (Error)')
-        else:
-            print('[Evaluation] iError=o (No Error)')
-        if aError:
-            print('[Evaluation] aError=x (Error)')
-        else:
-            print('[Evaluation] aError=o (No Error)')
-        print("[Evaluation] oMSE={}, aMSE={}, icorr={}, acorr={}".format(
-            np.sqrt(oMSE/self.m_test_size),
-            np.sqrt(aMSE/self.m_test_size),
-            (icorr/self.m_test_size),
-            (acorr/self.m_k)))
+        # if iError:
+        #     print('[Evaluation] iError=x (Error)')
+        # else:
+        #     print('[Evaluation] iError=o (No Error)')
+        # if aError:
+        #     print('[Evaluation] aError=x (Error)')
+        # else:
+        #     print('[Evaluation] aError=o (No Error)')
+        # print("[Evaluation] oMSE={}, aMSE={}, icorr={}, acorr={}".format(
+        #     np.sqrt(oMSE/self.m_test_size),
+        #     np.sqrt(aMSE/self.m_test_size),
+        #     (icorr/self.m_test_size),
+        #     (acorr/self.m_k)))
 
     def prediction(self, vct):
         # predict aspect rating
