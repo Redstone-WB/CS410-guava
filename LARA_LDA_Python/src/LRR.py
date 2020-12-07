@@ -123,7 +123,7 @@ class LRR:
         # initialize the gradient
         self.m_g_alpha.fill(0)
 
-        for i in self.m_k:
+        for i in range(self.m_k):
             vct.m_alpha = np.exp(vct.m_alpha_hat[i])/expsum  # map to aspect weight
 
             overall_rating += vct.m_alpha[i] * vct.m_aspect_rating[i]  # estimate the overall rating
@@ -360,8 +360,51 @@ class LRR:
 
     def prediction(self, vct):
         # predict aspect rating
-        vct.get_aspect_rating(self.m_beta, self.m_v+1)
+        vct.get_aspect_rating_with_v(self.m_beta, self.m_v+1)
         orating = 0
         for i in range(self.m_k):
             orating += self.m_alpha_cache[i] * vct.m_aspect_rating[i]
         return orating
+
+    def get_beta_obj_gradient(self):
+        likelihood = 0
+        aux_likelihood = 0
+        vSize = self.m_model.m_v + 1
+
+        # initialize the structure
+        self.m_g_beta.fill(0)
+
+        # part I of objective function: data likelihood
+        for vct in self.m_collection:
+            if vct.m_4train == False:
+                continue  # do not touch testing cases
+
+            oRate = vct.m_ratings[0]
+            orating = -oRate
+
+            # apply the current model
+            vct.get_aspect_rating_with_v(self.m_beta, vSize)
+            for i in range(self.m_model.m_k):
+                orating += vct.m_alpha[i] * vct.m_aspect_rating[i]
+
+            likelihood += orating*orating
+            orating /= self.m_model.m_delta
+
+            offset = 0
+            for i in range(self.m_model.m_k):
+                aux_likelihood += vct.m_alpha[i] * (vct.m_aspect_rating[i]-oRate) * (vct.m_aspect_rating[i]-oRate)
+                diff = vct.m_alpha[i] * (orating * self.PI*(vct.m_aspect_rating[i] - oRate)) * vct.m_aspect_rating[i]
+
+            sVct = vct.m_aspectV[i]
+            self.m_g_beta[offset] += diff
+            for j in range(len(sVct.m_index)):
+                self.m_g_beta[offset + sVct.m_index[j]] += diff * sVct.m_value[j]
+            offset += vSize  # move to next aspect
+
+        reg = 0
+        for i in range(len(self.m_beta)):
+            self.m_g_beta[i] += self.m_lambda * self.m_beta[i]
+            reg += self.m_beta[i] * self.m_beta[i]
+
+        return 0.5 * (likelihood/self.m_model.m_delta + self.PI*aux_likelihood + self.m_lambda*reg)
+

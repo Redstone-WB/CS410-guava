@@ -25,7 +25,7 @@ class SpaVector:
             _sum += self.m_value[i] * weight[self.m_index[i]]
         return _sum
 
-    def dot_product(self, weight, offset):
+    def dot_product_with_offset(self, weight, offset):
         _sum = weight[offset]
         for j in range(len(self.m_index)):
             _sum += self.m_value[j] * weight[self.m_index[j]]  # index starts from one

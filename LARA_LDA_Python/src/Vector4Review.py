@@ -44,7 +44,6 @@ class Vector4Review:
         for stn in review.Stns:
             aspect_id = stn.label[0]
 
-            word_freq = None
             if aspect_id not in aspect_word_freq:
                 word_freq = {}
                 aspect_word_freq[aspect_id] = word_freq
@@ -88,8 +87,14 @@ class Vector4Review:
 
     # apply model onto each aspect
     def get_aspect_rating(self, beta):
-        for i in self.m_k:
+        for i in range(self.m_k):
             self.m_pred_cache[i] = self.m_aspectV[i].dot_product(beta[i])
+            self.m_aspect_rating[i] = np.exp(self.m_pred_cache[i])
+
+    def get_aspect_rating_with_v(self, beta, v):
+        for i in range(self.m_k):
+            self.m_pred_cache[i] = self.m_aspectV[i].dot_product_with_offset(beta, v*i)
+            self.m_aspect_rating[i] = np.exp(self.m_pred_cache[i])
 
     def get_doc_length(self):
         _sum = 0
