@@ -12,7 +12,7 @@ class SpaVector:
         return _sum
 
     def normalize(self, norm):
-        for i in len(self.m_value):
+        for i in range(len(self.m_value)):
             self.m_value[i] /= norm
 
     def get_length(self):
@@ -21,13 +21,13 @@ class SpaVector:
 
     def dot_product(self, weight):
         _sum = weight[0]
-        for i in len(self.m_index):
+        for i in range(len(self.m_index)):
             _sum += self.m_value[i] * weight[self.m_index[i]]
         return _sum
 
     def dot_product(self, weight, offset):
         _sum = weight[offset]
-        for j in len(self.m_index):
+        for j in range(len(self.m_index)):
             _sum += self.m_value[j] * weight[self.m_index[j]]  # index starts from one
         return _sum
 

@@ -1,5 +1,5 @@
 import numpy as np
-from src.Structure import Corpus
+from Structure import Corpus
 import lda
 
 
@@ -11,6 +11,10 @@ class LDA_utils(Corpus):
         self.vocab_lda = tuple(corpus.Vocab)
         self.num_reviews_tot = self.get_num_reviews_tot()
         self.doc_term_matrix = self.create_doc_term_matrix()
+        self.m_k = -1
+
+    def set_topic_k(self, n_topics):
+        self.m_k = n_topics
 
     def get_num_reviews_tot(self):
         num_reviews_tot = 0
@@ -28,7 +32,7 @@ class LDA_utils(Corpus):
                     for key in stn.stn:
                         value = stn.stn[key]
         #                 print(key)
-                        doc_term_tmp[i][key-1] += value
+                        doc_term_tmp[i][key] += value
         #                 if i % 100 == 0 :
         #                     print(i)
                 i += 1
@@ -42,6 +46,7 @@ class LDA_utils(Corpus):
         # model.fit_tranform(X) is also ok.
         self.model.fit(self.doc_term_matrix)
         self.topic_word = self.model.topic_word_
+        self.set_topic_k(n_topics)
 
     def describe_topics(self, n_top_words):
         for i, topic_dist in enumerate(self.topic_word):
