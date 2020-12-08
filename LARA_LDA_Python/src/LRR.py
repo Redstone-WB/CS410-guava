@@ -1,5 +1,7 @@
 import numpy as np
 
+from ExceptionWithIflag import *
+from LARA_LDA_Python.src.LBFGS import LBFGS
 from LRR_Model import *
 from Vector4Review import *
 
@@ -44,8 +46,15 @@ class LRR:
                     self.m_train_size += 1
                 else:
                     self.m_test_size += 1
+                # ratings = np.ones(self.m_k)*int(review.Overall)
                 ratings = np.random.rand(self.m_k)*5
                 ratings = np.insert(ratings, 0, review.Overall)
+                # ratings = np.zeros(1+self.m_k)
+                # ratings[0] = int(review.Overall)
+                # for i in range(self.m_k):
+                #     # sample from N(overall_score, sigma=2)
+                #     score = int(review.Overall) + 2 + np.random.randn()
+                #     ratings[1+i] = np.min([np.max([0, score]), 5])
                 v4review = Vector4Review(review, ratings, is_train, self.aspect_model)
                 v4review.normalize()
                 # print("[NORMALIZE] {} {}".format(v4review.m_ID, v4review.m_alpha))
@@ -59,8 +68,10 @@ class LRR:
     def em_estimation(self, max_iter, converge):
         iter = 0
         diff = 10
-        likelihood = 0
-        old_likelihood = self.MStep(False)
+        try:
+            old_likelihood = self.MStep(False)
+        except ExceptionWithIflag:
+            raise ExceptionWithIflag('')
 
         while iter < max_iter or (iter < max_iter and diff > converge):
             alpha_exp = 0
@@ -90,10 +101,9 @@ class LRR:
         vct.get_aspect_rating(self.m_model.m_beta)
 
         # step 2: infer aspect weight
-        try:
-            self.m_old_alpha = vct.m_alpha.copy()
-            return self.infer_alpha(vct)
-        except Exception as e:
+        self.m_old_alpha = vct.m_alpha.copy()
+        ret = self.infer_alpha(vct)
+        if ret == -2:
             self.m_alpha = self.m_old_alpha.copy()
             return -2
 
@@ -110,10 +120,13 @@ class LRR:
 
         while True:
             f = self.get_alpha_obj_gradient(vct)
-            # lbfgs(n, m, vct.m_alpha_hat, f, self.m_g_alpha, False, self.m_diag_alpha, iprint, self.m_alpha_tol, 1e-20, iflag)
+            optimizer = LBFGS()
+            ret = optimizer.lbfgs(n, m, vct.m_alpha_hat, f, self.m_g_alpha, False, self.m_diag_alpha, iprint, self.m_alpha_tol, 1e-20, iflag)
+            if ret == -1:
+                return -2
 
             icall += 1
-            if not iflag[0] != 0 and icall <= self.m_alpha_step:
+            if not (iflag[0] != 0 and icall <= self.m_alpha_step):
                 break
 
     def get_alpha_obj_gradient(self, vct):
@@ -157,7 +170,7 @@ class LRR:
             self.m_g_alpha[i] += s
             _sum += self.m_alpha_cache[i] * s
 
-        return 0.5 * (overall_rating * overall_rating / self.m_model.m_delta + sum)
+        return 0.5 * (overall_rating * overall_rating / self.m_model.m_delta + _sum)
 
     # m-step can only be applied to training samples!!
     def MStep(self, update_sigma=False):
@@ -183,7 +196,6 @@ class LRR:
 
         # calculate the likelihood for the alpha part
         alpha_likelihood = 0
-        beta_likelihood = 0
         for vct in self.m_collection:
             if vct.m_4train == False:
                 continue
@@ -194,7 +206,10 @@ class LRR:
         alpha_likelihood += np.log(self.m_model.calc_det())
 
         # Step 3: ML for \beta
-        self.ml_beta()
+        try:
+            self.ml_beta()
+        except ExceptionWithIflag as e:
+            print(e)
 
         beta_likelihood = self.get_beta_prior_obj()
 
@@ -205,9 +220,10 @@ class LRR:
         self.m_model.m_delta = datalikelihood / self.m_train_size
         datalikelihood /= old_delta
 
-        print("[MStep] alpha_likelihood={}, beta_likelihood={}, data_likelihood={}, auxdata={}, delta={}".format(
-            alpha_likelihood, beta_likelihood, datalikelihood, auxdata, np.log(self.m_model.m_delta)))
-        return alpha_likelihood + beta_likelihood + datalikelihood + auxdata + np.log(self.m_model.m_delta)
+        total = alpha_likelihood + beta_likelihood + datalikelihood + auxdata + np.log(self.m_model.m_delta)
+        print("[MStep] total={}, alpha_likelihood={}, beta_likelihood={}, data_likelihood={}, auxdata={}, delta={}".format(
+            total, alpha_likelihood, beta_likelihood, datalikelihood, auxdata, np.log(self.m_model.m_delta)))
+        return total
 
     def test_alpha_variance(self, update_sigma):
         # test the variance of \hat\alpha estimation
@@ -248,7 +264,10 @@ class LRR:
             # if icall%1000 == 0:
             #     print("[MStep] ml_beta update: icall={}".format(icall))  # keep track of beta update
             f = self.get_beta_obj_gradient()  # to be minimized
-            # lbfgs(n, m, self.m_beta, f, self.m_g_beta, False, self.m_diag_beta, iprint, self.m_beta_tol, 1e-20, iflag)
+            optimizer = LBFGS()
+            ret = optimizer.lbfgs(n, m, self.m_beta, f, self.m_g_beta, False, self.m_diag_beta, iprint, self.m_beta_tol, 1e-20, iflag)
+            if ret == -1:
+                return
 
             icall += 1
             if not (iflag[0] != 0 and icall <= self.m_beta_step):
@@ -327,6 +346,8 @@ class LRR:
             for j in range(self.m_k):
                 pred[j][i] = vct.m_aspect_rating[j]
                 ans[j][i] = vct.m_ratings[j+1]
+                if i == 0 and j == 0:
+                    print("k={}, y={}, y_hat={}".format(j, ans[j][i], pred[j][i]))
 
             # 1. Aspect evaluation: to skip overall rating in ground-truth
             aMSE += Utilities.MSE(vct.m_aspect_rating, vct.m_ratings, 1)
@@ -411,3 +432,22 @@ class LRR:
 
         return 0.5 * (likelihood/self.m_model.m_delta + self.PI*aux_likelihood + self.m_lambda*reg)
 
+    def print_prediction(self):
+        for vct in self.m_collection:
+            # all the ground-truth ratings
+            y = ""
+            for i in range(len(vct.m_ratings)):
+                y += str(round(vct.m_ratings[i], 2)) + " "
+
+            # predicted ratings
+            vct.get_aspect_rating_with_v(self.m_beta, (1+self.m_v))
+            y_hat = ""
+            for i in range(len(vct.m_aspect_rating)):
+                y_hat += str(round(vct.m_aspect_rating[i], 2)) + " "
+
+            # inferred weights ( not meaningful for baseline logistic regression)
+            aspect_weight = ""
+            for i in range(len(vct.m_aspect_rating)):
+                aspect_weight += str(round(vct.m_alpha[i], 2)) + " "
+
+            print("org ratings={}, aspect_rating={}, aspect_weight={}".format(y, y_hat, aspect_weight))

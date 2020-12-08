@@ -18,12 +18,16 @@ class LRR_Model:
         self.m_sigma_inv = np.zeros((self.m_k, self.m_k), dtype=np.float64)
         self.m_beta = np.zeros((self.m_k, self.m_v + 1), dtype=np.float64)
 
+        self.init()
+
     def init(self):
         for i in range(self.m_k):
             self.m_mu[i] = (2.0 * np.random.rand() - 1.0)
             self.m_sigma_inv[i][i] = 1.0
             self.m_sigma[i, i] = 1.0
             Utilities.randomize(self.m_beta[i])
+
+        self.m_delta = 1
 
     def calc_covariance(self, vct):
         _sum = 0

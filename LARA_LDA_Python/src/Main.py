@@ -36,6 +36,7 @@ def run_bootstrap():
 
     model = LRR(aspect_model, corpus, 500, 1e-2, 5000, 1e-2, 2.0)
     model.em_estimation(10, 1e-4)
+    model.print_prediction()
 
 
 if __name__ == "__main__":

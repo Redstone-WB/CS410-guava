@@ -53,4 +53,4 @@ def correlation(pred, answer, offset):
     for i in range(len(pred)):
         correlation += (pred[i] - m_x) / s_x * (answer[offset + i] - m_y) / s_y
 
-    return correlation / (pred.length - 1.0)
+    return correlation / (len(pred) - 1.0)
