@@ -6,6 +6,8 @@ from LARA_LDA_Python.src import Utilities
 
 class Vector4Review:
     def __init__(self, review, ratings, isTrain, aspect_model):
+        if review == None:
+            return
         self.m_ID = review.ReviewID
         self.m_4train = isTrain
         self.m_ratings = ratings    # 0: input total rating, 1: aspect0 rating, 2: aspect1 rating, ...
@@ -86,14 +88,43 @@ class Vector4Review:
         self.m_alpha = np.zeros(self.m_k, dtype=np.float64)
         self.m_alpha_hat = np.zeros(self.m_k, dtype=np.float64)
 
+    def init_from_file(self, id, ratings, is_train):
+        self.m_ID = id
+        self.m_4train = is_train
+        self.m_k = len(ratings) - 1
+
+        self.m_ratings = np.zeros(len(ratings))
+        for i in range(len(ratings)):
+            self.m_ratings[i] = float(ratings[i])
+        self.m_aspectV = []
+
+        self.m_aspect_rating = np.zeros(self.m_k)
+        self.m_pred_cache = np.zeros(self.m_k)
+        self.m_alpha = np.zeros(self.m_k)
+        self.m_alpha_hat = np.zeros(self.m_k)
+
     def get_aspect_size(self):
         if len(self.m_aspectV) == 1:
             return LRR.K
         else:
             return len(self.m_aspectV)
-    #
-    # def set_aspect(self, i, features):
-    #     self.m_aspectV[i] = SpaVector(features)
+
+    def get_length(self):
+        len = 0
+        for vct in self.m_aspectV:
+            len = np.max([len, vct.get_length()])
+        return len
+
+    def add_aspect(self, features):
+        spa_index = []  # index must start from 1
+        spa_value = []
+        for i in range(len(features)):
+            arr = features[i].split(":")
+            spa_index.append(1 + int(arr[0]))
+            spa_value.append(float(arr[1]))
+
+        spa_vector = SpaVector(spa_index, spa_value)
+        self.m_aspectV.append(spa_vector)
 
     # apply model onto each aspect
     def get_aspect_rating(self, beta):
@@ -119,7 +150,8 @@ class Vector4Review:
 
             aSize = vct.L1Norm()
             vct.normalize(aSize)
-            self.m_alpha_hat[i] = np.random.rand() + np.log(aSize / norm)
+            # self.m_alpha_hat[i] = np.random.rand() + np.log(aSize / norm)
+            self.m_alpha_hat[i] = 0.1 + np.log(aSize / norm)
 
         norm = Utilities.exp_sum(self.m_alpha_hat)
         for i in range(self.m_k):

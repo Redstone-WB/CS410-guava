@@ -21,6 +21,7 @@ def run_CreateVocab():
 def run_bootstrap():
     n_topics = 5    # 10
     n_iter = 100    # 1500
+    v = -1
 
     cv_obj = run_CreateVocab()
     corpus = Corpus(cv_obj.corpus, cv_obj.Vocab, cv_obj.Count, cv_obj.VocabDict)
@@ -35,7 +36,9 @@ def run_bootstrap():
     aspect_model.describe_topics(n_topics)
 
     model = LRR(aspect_model, corpus, 500, 1e-2, 5000, 1e-2, 2.0)
-    model.em_estimation(10, 1e-4)
+    # model.load_from_file("../data/model_base_hotel.dat")
+    # v = model.load_vectors("../data/vector_CHI_4000.dat")
+    model.em_estimation(5, 1e-4, v)
     model.print_prediction()
 
 

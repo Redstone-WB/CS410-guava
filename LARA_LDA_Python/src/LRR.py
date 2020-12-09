@@ -60,24 +60,93 @@ class LRR:
                 # print("[NORMALIZE] {} {}".format(v4review.m_ID, v4review.m_alpha))
                 self.m_collection.append(v4review)
 
-    def init(self, voca_size):
+    def init_with_v(self, v):
+        if v == -1:
+            return
+
+        if self.m_collection is None or len(self.m_collection) == 0:
+            print("[Error]Load training data first!")
+            return -1
+
+        vct = self.m_collection[0]
+        self.m_v = v
+        self.m_k = len(vct.m_aspectV)
+
+        self.m_diag_beta = np.zeros(self.m_k * (self.m_v+1), dtype=np.float64)
+        self.m_g_beta = np.zeros(len(self.m_diag_beta), dtype=np.float64)
+        self.m_beta = np.zeros(len(self.m_g_beta), dtype=np.float64)
+
+        self.m_diag_alpha = np.zeros(self.m_k, dtype=np.float64)
+        self.m_g_alpha = np.zeros(self.m_k, dtype=np.float64)
+        self.m_alpha = np.zeros(self.m_k, dtype=np.float64)
+        self.m_alpha_cache = np.zeros(self.m_k, dtype=np.float64)
+
+        return 0
+
+    def init(self, v):
+        self.init_with_v(v)
+        initV = 1
         if len(self.m_collection) == 0:
             print("[Error]Load training data first!")
             return -1
 
-    def em_estimation(self, max_iter, converge):
+        return initV
+
+    def load_from_file(self, modelfile):
+        self.m_collection.clear()
+        self.m_model = LRR_Model(-1, -1)
+        self.m_model.load_from_file(modelfile)
+        self.m_old_alpha = np.zeros(self.m_model.m_k)
+
+    def load_vectors(self, vector_file):
+        with open(vector_file, 'r') as f:
+            self.m_train_size = 0
+            self.m_test_size = 0
+
+            is_train = False
+            count = 0
+            len = 0
+
+            while True:
+                tmpTxt = f.readline()
+                if not tmpTxt:
+                    break
+
+                # is_train == (count % 4 < 3) # Warning
+                mod = count % 4
+                is_train = (mod < 3)
+                if is_train:
+                    self.m_train_size += 1
+                else:
+                    self.m_test_size += 1
+                count += 1
+                arr = tmpTxt.split('\t')
+                vct = Vector4Review(None, None, None, None)
+                vct.init_from_file(arr[0], arr[1:], is_train)
+
+                for i in range(self.m_k):
+                    tmpTxt = f.readline().strip()
+                    arr = tmpTxt.split(" ")
+                    vct.add_aspect(arr)
+                vct.normalize()
+
+                self.m_collection.append(vct)
+                len = np.max([vct.get_length(), len])  # max index word
+
+        print("Load {} restaurants data", count)
+        return len
+
+    def em_estimation(self, max_iter, converge, v):
         iter = 0
         diff = 10
-        try:
-            old_likelihood = self.MStep(False)
-        except ExceptionWithIflag:
-            raise ExceptionWithIflag('')
+        old_likelihood = self.init(v)
 
         while iter < max_iter or (iter < max_iter and diff > converge):
             alpha_exp = 0
             alpha_cov = 0
 
             # E-step
+            count = 1
             for vct in self.m_collection:
                 if vct.m_4train:
                     tag = self.EStep(vct)
@@ -85,6 +154,7 @@ class LRR:
                         alpha_cov += 1
                     elif tag == -2:  # failed with exceptions
                         alpha_exp += 1
+                    count += 1
             print("[Iteration] {}".format(iter))
 
             # M-step
@@ -104,8 +174,10 @@ class LRR:
         self.m_old_alpha = vct.m_alpha.copy()
         ret = self.infer_alpha(vct)
         if ret == -2:
-            self.m_alpha = self.m_old_alpha.copy()
+            vct.m_alpha = self.m_old_alpha.copy()
             return -2
+
+        return ret
 
     def infer_alpha(self, vct):
         f = 0
@@ -118,9 +190,9 @@ class LRR:
         # initialize the diagonal matrix
         self.m_diag_alpha.fill(0)
 
+        optimizer = LBFGS()
         while True:
             f = self.get_alpha_obj_gradient(vct)
-            optimizer = LBFGS()
             ret = optimizer.lbfgs(n, m, vct.m_alpha_hat, f, self.m_g_alpha, False, self.m_diag_alpha, iprint, self.m_alpha_tol, 1e-20, iflag)
             if ret == -1:
                 return -2
@@ -128,6 +200,14 @@ class LRR:
             icall += 1
             if not (iflag[0] != 0 and icall <= self.m_alpha_step):
                 break
+
+        if iflag[0] != 0:
+            return -1 # have not converged yet
+        else:
+            expsum = Utilities.exp_sum(vct.m_alpha_hat)
+            for n in range(self.m_model.m_k):
+                vct.m_alpha[n] = np.exp(vct.m_alpha_hat[n])/expsum
+            return f
 
     def get_alpha_obj_gradient(self, vct):
         expsum = Utilities.exp_sum(vct.m_alpha_hat)
@@ -143,14 +223,14 @@ class LRR:
             overall_rating += vct.m_alpha[i] * vct.m_aspect_rating[i]  # estimate the overall rating
             self.m_alpha_cache[i] = vct.m_alpha_hat[i] - self.m_model.m_mu[i]  # difference with prior
 
-            s = self.PI * np.power(vct.m_aspect_rating[i]-vct.m_ratings[0], 2)
+            s = self.PI * (vct.m_aspect_rating[i]-vct.m_ratings[0]) * (vct.m_aspect_rating[i]-vct.m_ratings[0])
 
             if np.abs(s) > 1e-10:  # in case we will disable it
                 for j in range(self.m_model.m_k):
                     if j == i:
                         self.m_g_alpha[j] += 0.5 * s * vct.m_alpha[i] * (1-vct.m_alpha[i])
                     else:
-                        self.m_g_alpha[j] -= 0.5 * s * vct.m_alpha[i] * vct.m_alpha[i]
+                        self.m_g_alpha[j] -= 0.5 * s * vct.m_alpha[i] * vct.m_alpha[j]  # Warning: not i
 
                 _sum += vct.m_alpha[i] * s
 
@@ -162,7 +242,7 @@ class LRR:
                 if i == j:
                     self.m_g_alpha[j] += diff*vct.m_aspect_rating[i] * vct.m_alpha[i] * (1-vct.m_alpha[i])
                 else:
-                    self.m_g_alpha[j] -= diff * vct.m_aspect_rating[i] * vct.m_alpha[i] * vct.m_alpha[i]
+                    self.m_g_alpha[j] -= diff * vct.m_aspect_rating[i] * vct.m_alpha[i] * vct.m_alpha[j]
 
                 # part II of objective function: prior
                 s += self.m_alpha_cache[j] * self.m_model.m_sigma_inv[i][j]
@@ -180,10 +260,13 @@ class LRR:
         self.m_g_alpha.fill(0)
 
         # Step 1: ML for \mu
-        for vct in self.m_collection:
+        count = 0
+        for n, vct in enumerate(self.m_collection):
             if vct.m_4train == False:
                 continue
 
+            # print("hat {}: {}\t{}".format(count, self.m_g_alpha[0], vct.m_alpha_hat[0]))
+            count += 1
             for i in range(self.m_k):
                 self.m_g_alpha[i] += vct.m_alpha_hat[i]
 
@@ -196,6 +279,7 @@ class LRR:
 
         # calculate the likelihood for the alpha part
         alpha_likelihood = 0
+        count = 0
         for vct in self.m_collection:
             if vct.m_4train == False:
                 continue
@@ -203,6 +287,8 @@ class LRR:
             for i in range(k):
                 self.m_diag_alpha[i] = vct.m_alpha_hat[i] - self.m_model.m_mu[i]
             alpha_likelihood += self.m_model.calc_covariance(self.m_diag_alpha)
+            # print("alpha {}: {}".format(count, alpha_likelihood))
+            count += 1
         alpha_likelihood += np.log(self.m_model.calc_det())
 
         # Step 3: ML for \beta
@@ -260,11 +346,11 @@ class LRR:
                 self.m_beta[j+pos] = self.m_model.m_beta[i][j]
 
         self.m_diag_beta.fill(0)
+        optimizer = LBFGS()
         while True:
             # if icall%1000 == 0:
             #     print("[MStep] ml_beta update: icall={}".format(icall))  # keep track of beta update
             f = self.get_beta_obj_gradient()  # to be minimized
-            optimizer = LBFGS()
             ret = optimizer.lbfgs(n, m, self.m_beta, f, self.m_g_beta, False, self.m_diag_beta, iprint, self.m_beta_tol, 1e-20, iflag)
             if ret == -1:
                 return
@@ -419,11 +505,11 @@ class LRR:
                 aux_likelihood += vct.m_alpha[i] * (vct.m_aspect_rating[i]-oRate) * (vct.m_aspect_rating[i]-oRate)
                 diff = vct.m_alpha[i] * (orating * self.PI*(vct.m_aspect_rating[i] - oRate)) * vct.m_aspect_rating[i]
 
-            sVct = vct.m_aspectV[i]
-            self.m_g_beta[offset] += diff
-            for j in range(len(sVct.m_index)):
-                self.m_g_beta[offset + sVct.m_index[j]] += diff * sVct.m_value[j]
-            offset += vSize  # move to next aspect
+                sVct = vct.m_aspectV[i]
+                self.m_g_beta[offset] += diff
+                for j in range(len(sVct.m_index)):
+                    self.m_g_beta[offset + sVct.m_index[j]] += diff * sVct.m_value[j]
+                offset += vSize  # move to next aspect
 
         reg = 0
         for i in range(len(self.m_beta)):
@@ -450,4 +536,4 @@ class LRR:
             for i in range(len(vct.m_aspect_rating)):
                 aspect_weight += str(round(vct.m_alpha[i], 2)) + " "
 
-            print("org ratings={}, aspect_rating={}, aspect_weight={}".format(y, y_hat, aspect_weight))
+            print("original ratings={}, aspect_rating={}, aspect_weight={}".format(y, y_hat, aspect_weight))

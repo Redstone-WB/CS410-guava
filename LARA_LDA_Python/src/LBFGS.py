@@ -75,7 +75,8 @@ class LBFGS:
             for i in range(1, n+1):
                 self.w[self.ispt + i - 1] = -g[i-1] * diag[i-1]
 
-            self.gnorm = np.sqrt(self.ddot(n, g, 0, 1, g, 0, 1))
+            ttemp = self.ddot(n, g, 0, 1, g, 0, 1)
+            self.gnorm = np.sqrt( ttemp )
             self.stp1 = 1 / self.gnorm
             self.ftol = 0.0001
             self.maxfev = 100
@@ -92,7 +93,7 @@ class LBFGS:
                 self.bound = self.iter-1
                 if self.iter != 1:
                     if self.iter > m:
-                        bound = m
+                        self.bound = m
                     self.ys = self.ddot(n, self.w, self.iypt + self.npt, 1, self.w, self.ispt + self.npt, 1)
                     # diagco = False
                     self.yy = self.ddot(n, self.w, self.iypt + self.npt, 1, self.w, self.iypt + self.npt, 1)
@@ -112,7 +113,7 @@ class LBFGS:
 
                     self.cp = self.point
 
-                    for i in range(1, bound+1):
+                    for i in range(1, self.bound+1):
                         self.cp = self.cp - 1
                         if self.cp == -1:
                             self.cp = m - 1
@@ -125,7 +126,7 @@ class LBFGS:
                     for i in range(1, n+1):
                         self.w[i - 1] = diag[i - 1] * self.w[i - 1]
 
-                    for i in range(1, bound+1):
+                    for i in range(1, self.bound+1):
                         self.yr = self.ddot(n, self.w, self.iypt + self.cp * n, 1, self.w, 0, 1)
                         self.beta = self.w[n + self.cp + 1 - 1] * self.yr
                         self.inmc = n + m + self.cp + 1
@@ -166,19 +167,19 @@ class LBFGS:
                 self.w[self.ispt + self.npt + i - 1] = self.stp[0] * self.w[self.ispt + self.npt + i - 1]
                 self.w[self.iypt + self.npt + i - 1] = g[i - 1] - self.w[i - 1]
 
-            point = point + 1;
-            if point == m:
-                point = 0
+            self.point = self.point + 1
+            if self.point == m:
+                self.point = 0
 
-            gnorm = np.sqrt(self.ddot(n, g, 0, 1, g, 0, 1))
-            xnorm = np.sqrt(self.ddot(n, x, 0, 1, x, 0, 1))
-            xnorm = np.max([1.0, xnorm])
+            self.gnorm = np.sqrt(self.ddot(n, g, 0, 1, g, 0, 1))
+            self.xnorm = np.sqrt(self.ddot(n, x, 0, 1, x, 0, 1))
+            self.xnorm = np.max([1.0, self.xnorm])
 
-            if gnorm / xnorm <= eps:
-                finish = True
+            if self.gnorm / self.xnorm <= eps:
+                self.finish = True
 
             if iprint[1 - 1] >= 0:
-                self.lb1(iprint, iter, self.nfun, gnorm, n, m, x, f, g, self.stp, finish)
+                self.lb1(iprint, iter, self.nfun, self.gnorm, n, m, x, f, g, self.stp, self.finish)
 
             # Cache the current solution vector. Due to the spaghetti-like
             # nature of this code, it's not possible to quit here and return;
@@ -226,7 +227,7 @@ class LBFGS:
             dtemp = dtemp + dx[ix0 + i - 1] * dy[iy0 + i - 1] + dx[ix0 + i + 1 - 1] * dy[iy0 + i + 1 - 1] + \
                     dx[ix0 + i + 2 - 1] * dy[iy0 + i + 2 - 1] + dx[ix0 + i + 3 - 1] * dy[iy0 + i + 3 - 1] + \
                     dx[ix0 + i + 4 - 1] * dy[iy0 + i + 4 - 1]
-            print("{}: dtemp={}".format(i, dtemp))
+            # print("{}: dtemp={}".format(i, dtemp))
 
         return dtemp
 
@@ -272,40 +273,40 @@ class LBFGS:
 
 if __name__ == "__main__":
     optimizer = LBFGS()
-    n = 20005
     m = 5
     f = 1081.9831533640386
 
-    with open('./sample_beta.txt', 'r') as beta_file, \
-            open('./sample_g_beta.txt', 'r') as g_beta_file:
-        m_beta = []
-        beta_data = beta_file.read()
-        for item in beta_data.split(","):
+    with open('/workspace/beta.txt', 'r') as x_file, \
+            open('/workspace/g_beta.txt', 'r') as g_file:
+        m_alpha_hat = []
+        x_data = x_file.read()
+        for item in x_data.split(","):
             if item == '':
                 continue
-            m_beta.append(item)
-        m_beta = np.array(m_beta, dtype=np.float64)
+            m_alpha_hat.append(item)
+        m_alpha_hat = np.array(m_alpha_hat, dtype=np.float64)
 
-        m_g_beta = []
-        g_beta_data = g_beta_file.read()
-        for item in g_beta_data.split(","):
+        m_g_alpha = []
+        g_data = g_file.read()
+        for item in g_data.split(","):
             if item == '':
                 continue
-            m_g_beta.append(item)
-        m_g_beta = np.array(m_g_beta, dtype=np.float64)
+            m_g_alpha.append(item)
+        m_g_alpha = np.array(m_g_alpha, dtype=np.float64)
 
-        m_diag_beta = np.zeros(len(m_beta))
+        m_diag_alpha = np.zeros(len(m_alpha_hat))
 
+        n = len(m_alpha_hat)
         iprint = [-1, 0]
-        m_betaTol = 0.01
+        m_alphaTol = 0.01
         iflag = [0]
 
         ret = optimizer.lbfgs(
-            n, m, m_beta, f, m_g_beta, False,
-            m_diag_beta, iprint, m_betaTol, 1e-20, iflag)
+            n, m, m_alpha_hat, f, m_g_alpha, False,
+            m_diag_alpha, iprint, m_alphaTol, 1e-20, iflag)
 
-        AssertionError(m_beta[0] == 1.0209655010538654)
-        AssertionError(m_g_beta[0] == 140.5198913358513)
-        AssertionError(m_diag_beta[0] == 1.371634209213498)
+        AssertionError(m_alpha_hat[0] == -0.7075550708792452)
+        AssertionError(m_g_alpha[0] == -1.313301233992803)
+        AssertionError(m_diag_alpha[0] == -1.0179588329040197)
         AssertionError(iflag[0] == 1)
 

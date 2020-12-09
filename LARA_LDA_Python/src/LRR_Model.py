@@ -5,6 +5,9 @@ from LARA_LDA_Python.src import Utilities
 
 class LRR_Model:
     def __init__(self, k, v):
+        if k == -1:
+            return
+
         self.m_k = k            # num of aspects
         self.m_v = v            # num of words
         self.m_mu = None        # prior for \alpha in each review
@@ -20,7 +23,51 @@ class LRR_Model:
 
         self.init()
 
+    def create(self):
+        self.m_mu = np.zeros(self.m_k, dtype=np.float64)
+        self.m_sigma = np.zeros((self.m_k, self.m_k), dtype=np.float64)
+        self.m_sigma_inv = np.zeros((self.m_k, self.m_k), dtype=np.float64)
+        self.m_beta = np.zeros((self.m_k, self.m_v + 1), dtype=np.float64)
+
+    def load_from_file(self, modelfile):
+        with open(modelfile, 'r') as f:
+            # part 1: aspect size, vocabulary size
+            tmpTxt = f.readline()
+            container = tmpTxt.split("\t")
+            self.m_k = int(container[0])
+            self.m_v = int(container[1])
+            self.create()
+
+            # part 2: \mu
+            tmpTxt = f.readline()
+            container = tmpTxt.split("\t")
+            for i in range(self.m_k):
+                self.m_mu[i] = float(container[i])
+
+            # part 3: \sigma
+            for i in range(self.m_k):
+                tmpTxt=f.readline()
+                container = tmpTxt.split("\t")
+                for j in range(self.m_k):
+                    self.m_sigma[i, j] = float(container[j])
+            self.calc_sigma_inv(1.0)
+
+            # part 4: \beta
+            for i in range(self.m_k):
+                tmpTxt=f.readline()
+                container = tmpTxt.split("\t")
+                for j in range(self.m_v):
+                    self.m_beta[i][j] = float(container[j])
+
+            # part 5: \delta
+            tmpTxt = f.readline()
+            self.m_delta = float(tmpTxt.strip())
+
+        print("load Done")
+
     def init(self):
+        self.create()
+
         for i in range(self.m_k):
             self.m_mu[i] = (2.0 * np.random.rand() - 1.0)
             self.m_sigma_inv[i][i] = 1.0
