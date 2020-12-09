@@ -226,6 +226,7 @@ class LBFGS:
             dtemp = dtemp + dx[ix0 + i - 1] * dy[iy0 + i - 1] + dx[ix0 + i + 1 - 1] * dy[iy0 + i + 1 - 1] + \
                     dx[ix0 + i + 2 - 1] * dy[iy0 + i + 2 - 1] + dx[ix0 + i + 3 - 1] * dy[iy0 + i + 3 - 1] + \
                     dx[ix0 + i + 4 - 1] * dy[iy0 + i + 4 - 1]
+            print("{}: dtemp={}".format(i, dtemp))
 
         return dtemp
 
@@ -267,4 +268,44 @@ class LBFGS:
             dy[iy0 + i + 1 - 1] = dy[iy0 + i + 1 - 1] + da * dx[ix0 + i + 1 - 1]
             dy[iy0 + i + 2 - 1] = dy[iy0 + i + 2 - 1] + da * dx[ix0 + i + 2 - 1]
             dy[iy0 + i + 3 - 1] = dy[iy0 + i + 3 - 1] + da * dx[ix0 + i + 3 - 1]
+
+
+if __name__ == "__main__":
+    optimizer = LBFGS()
+    n = 20005
+    m = 5
+    f = 1081.9831533640386
+
+    with open('./sample_beta.txt', 'r') as beta_file, \
+            open('./sample_g_beta.txt', 'r') as g_beta_file:
+        m_beta = []
+        beta_data = beta_file.read()
+        for item in beta_data.split(","):
+            if item == '':
+                continue
+            m_beta.append(item)
+        m_beta = np.array(m_beta, dtype=np.float64)
+
+        m_g_beta = []
+        g_beta_data = g_beta_file.read()
+        for item in g_beta_data.split(","):
+            if item == '':
+                continue
+            m_g_beta.append(item)
+        m_g_beta = np.array(m_g_beta, dtype=np.float64)
+
+        m_diag_beta = np.zeros(len(m_beta))
+
+        iprint = [-1, 0]
+        m_betaTol = 0.01
+        iflag = [0]
+
+        ret = optimizer.lbfgs(
+            n, m, m_beta, f, m_g_beta, False,
+            m_diag_beta, iprint, m_betaTol, 1e-20, iflag)
+
+        AssertionError(m_beta[0] == 1.0209655010538654)
+        AssertionError(m_g_beta[0] == 140.5198913358513)
+        AssertionError(m_diag_beta[0] == 1.371634209213498)
+        AssertionError(iflag[0] == 1)
 
