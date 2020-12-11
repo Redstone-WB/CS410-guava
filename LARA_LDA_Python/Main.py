@@ -1,9 +1,11 @@
-__author__ = 'zhangyin'
+# __author__ = 'zhangyin'
 
-from LARA_LDA_Python.src.LRR import LRR
-from CreateVocab import *
-from Structure import *
-from LARA_LDA_Python.src.lda_preproc import LDA_utils
+
+from src.LRR import LRR
+from src.lda_preproc import LDA_utils
+from src.CreateVocab import *
+from src.Structure import *
+
 
 def run_CreateVocab():
     # step 1: creating a vocab from data
@@ -24,7 +26,8 @@ def run_bootstrap():
     v = -1
 
     cv_obj = run_CreateVocab()
-    corpus = Corpus(cv_obj.corpus, cv_obj.Vocab, cv_obj.Count, cv_obj.VocabDict)
+    corpus = Corpus(cv_obj.corpus, cv_obj.Vocab,
+                    cv_obj.Count, cv_obj.VocabDict)
 
     # aspect_model = Bootstrapping()
     # loadfilepath = "./init_aspect_word.txt"

@@ -1,9 +1,7 @@
 import numpy as np
 
-from LBFGS import *
 
-
-class Mcsrch:
+class Mcsrch():
     infoc = [0]
     j = 0
     dg = 0
@@ -42,14 +40,14 @@ class Mcsrch:
         return np.max([x, y, z])
 
     @staticmethod
-    def mcsrch(n, x, f, g, s, is0, stp, ftol, xtol, maxfev, info, nfev, wa):
+    def mcsrch(n, x, f, g, s, is0, stp, ftol, xtol, maxfev, info, nfev, wa, gtol, stpmin, stpmax):
         p5 = 0.5
         p66 = 0.66
         xtrapf = 4
 
         if info[0] != - 1:
             Mcsrch.infoc[0] = 1
-            if n <= 0 or stp[0] <= 0 or ftol < 0 or LBFGS.gtol < 0 or xtol < 0 or LBFGS.stpmin < 0 or LBFGS.stpmax < LBFGS.stpmin or maxfev <= 0:
+            if n <= 0 or stp[0] <= 0 or ftol < 0 or gtol < 0 or xtol < 0 or stpmin < 0 or stpmax < stpmin or maxfev <= 0:
                 return
 
             # Compute the initial gradient in the search direction
@@ -69,7 +67,7 @@ class Mcsrch:
             nfev[0] = 0
             Mcsrch.finit = f
             Mcsrch.dgtest = ftol * Mcsrch.dginit
-            Mcsrch.width = LBFGS.stpmax - LBFGS.stpmin
+            Mcsrch.width = stpmax - stpmin
             Mcsrch.width1 = Mcsrch.width / p5
 
             for j in range(1, n+1):
@@ -103,8 +101,8 @@ class Mcsrch:
                     Mcsrch.stmax = stp[0] + xtrapf * (stp[0] - Mcsrch.stx[0])
 
                 # Force the step to be within the bounds stpmax and stpmin.
-                stp[0] = np.max([stp[0], LBFGS.stpmin])
-                stp[0] = np.min([stp[0], LBFGS.stpmax])
+                stp[0] = np.max([stp[0], stpmin])
+                stp[0] = np.min([stp[0], stpmax])
 
                 # If an unusual termination is to occur then let
                 # stp be the lowest point obtained so far.
@@ -136,10 +134,10 @@ class Mcsrch:
             if (Mcsrch.brackt[0] and (stp[0] <= Mcsrch.stmin or stp[0] >= Mcsrch.stmax)) or Mcsrch.infoc[0] == 0:
                 info[0] = 6
 
-            if stp[0] == LBFGS.stpmax and f <= ftest1 and Mcsrch.dg <= Mcsrch.dgtest:
+            if stp[0] == stpmax and f <= ftest1 and Mcsrch.dg <= Mcsrch.dgtest:
                 info[0] = 5
 
-            if stp[0] == LBFGS.stpmin and ( f > ftest1 or Mcsrch.dg >= Mcsrch.dgtest ):
+            if stp[0] == stpmin and (f > ftest1 or Mcsrch.dg >= Mcsrch.dgtest):
                 info[0] = 4
 
             if nfev[0] >= maxfev:
@@ -148,7 +146,7 @@ class Mcsrch:
             if Mcsrch.brackt[0] and Mcsrch.stmax - Mcsrch.stmin <= xtol * Mcsrch.stmax:
                 info[0] = 2
 
-            if f <= ftest1 and np.abs(Mcsrch.dg) <= LBFGS.gtol * ( - Mcsrch.dginit ):
+            if f <= ftest1 and np.abs(Mcsrch.dg) <= gtol * (- Mcsrch.dginit):
                 info[0] = 1
 
             # Check for termination.
@@ -159,7 +157,7 @@ class Mcsrch:
             # In the first stage we seek a step for which the modified
             # function has a nonpositive value and nonnegative derivative.
 
-            if Mcsrch.stage1 and f <= ftest1 and Mcsrch.dg >= np.min([ftol, LBFGS.gtol]) * Mcsrch.dginit:
+            if Mcsrch.stage1 and f <= ftest1 and Mcsrch.dg >= np.min([ftol, gtol]) * Mcsrch.dginit:
                 Mcsrch.stage1 = False
 
             # A modified function is used to predict the step only if
@@ -180,7 +178,8 @@ class Mcsrch:
 
                 # Call cstep to update the interval of uncertainty
                 # and to compute the new step.
-                Mcsrch.mcstep(Mcsrch.stx, Mcsrch.fxm, Mcsrch.dgxm, Mcsrch.sty, Mcsrch.fym, Mcsrch.dgym, stp, Mcsrch.fm, Mcsrch.dgm, Mcsrch.brackt, Mcsrch.stmin, Mcsrch.stmax, Mcsrch.infoc)
+                Mcsrch.mcstep(Mcsrch.stx, Mcsrch.fxm, Mcsrch.dgxm, Mcsrch.sty, Mcsrch.fym, Mcsrch.dgym,
+                              stp, Mcsrch.fm, Mcsrch.dgm, Mcsrch.brackt, Mcsrch.stmin, Mcsrch.stmax, Mcsrch.infoc)
 
                 # Reset the function and gradient values for f.
 
@@ -191,14 +190,16 @@ class Mcsrch:
             else:
                 # Call mcstep to update the interval of uncertainty
                 # and to compute the new step.
-                Mcsrch.mcstep(Mcsrch.stx, Mcsrch.fx, Mcsrch.dgx, Mcsrch.sty, Mcsrch.fy, Mcsrch.dgy, stp, f, Mcsrch.dg, Mcsrch.brackt, Mcsrch.stmin, Mcsrch.stmax, Mcsrch.infoc)
+                Mcsrch.mcstep(Mcsrch.stx, Mcsrch.fx, Mcsrch.dgx, Mcsrch.sty, Mcsrch.fy, Mcsrch.dgy,
+                              stp, f, Mcsrch.dg, Mcsrch.brackt, Mcsrch.stmin, Mcsrch.stmax, Mcsrch.infoc)
 
             # Force a sufficient decrease in the size of the
             # interval of uncertainty.
 
             if Mcsrch.brackt[0]:
                 if np.abs(Mcsrch.sty[0] - Mcsrch.stx[0]) >= p66 * Mcsrch.width1:
-                    stp[0] = Mcsrch.stx[0] + p5 * (Mcsrch.sty[0] - Mcsrch.stx[0])
+                    stp[0] = Mcsrch.stx[0] + p5 * \
+                        (Mcsrch.sty[0] - Mcsrch.stx[0])
                 Mcsrch.width1 = Mcsrch.width
                 Mcsrch.width = np.abs(Mcsrch.sty[0] - Mcsrch.stx[0])
 
@@ -215,7 +216,8 @@ class Mcsrch:
             # First case
             info[0] = 1
             bound = True
-            theta = 3 * (Mcsrch.fx[0] - fp) / (stp[0] - Mcsrch.stx[0]) + dx[0] + dp
+            theta = 3 * (Mcsrch.fx[0] - fp) / \
+                (stp[0] - Mcsrch.stx[0]) + dx[0] + dp
             s = Mcsrch.max3(np.abs(theta), np.abs(dx[0]), np.abs(dp))
             gamma = s * np.sqrt(Mcsrch.sqr(theta / s) - (dx[0] / s) * (dp / s))
             if stp[0] < Mcsrch.stx[0]:
@@ -224,7 +226,8 @@ class Mcsrch:
             q = ((gamma - dx[0]) + gamma) + dp
             r = p / q
             stpc = Mcsrch.stx[0] + r * (stp[0] - Mcsrch.stx[0])
-            stpq = Mcsrch.stx[0] + ((dx[0] / ((Mcsrch.fx[0] - fp) / (stp[0] - Mcsrch.stx[0]) + dx[0])) / 2) * (stp[0] - Mcsrch.stx[0])
+            stpq = Mcsrch.stx[0] + ((dx[0] / ((Mcsrch.fx[0] - fp) / (
+                stp[0] - Mcsrch.stx[0]) + dx[0])) / 2) * (stp[0] - Mcsrch.stx[0])
             if np.abs(stpc - Mcsrch.stx[0]) < np.abs(stpq - Mcsrch.stx[0]):
                 stpf = stpc
             else:
@@ -234,7 +237,8 @@ class Mcsrch:
             # Second case
             info[0] = 2
             bound = False
-            theta = 3 * (Mcsrch.fx[0] - fp) / (stp[0] - Mcsrch.stx[0]) + dx[0] + dp
+            theta = 3 * (Mcsrch.fx[0] - fp) / \
+                (stp[0] - Mcsrch.stx[0]) + dx[0] + dp
             s = Mcsrch.max3(np.abs(theta), np.abs(dx[0]), np.abs(dp))
             gamma = s * np.sqrt(Mcsrch.sqr(theta / s) - (dx[0] / s) * (dp / s))
             if stp[0] > Mcsrch.stx[0]:
@@ -249,15 +253,18 @@ class Mcsrch:
             else:
                 stpf = stpq
             Mcsrch.brackt[0] = True
-        elif np.abs(dp) < np.abs (dx[0]):
+        elif np.abs(dp) < np.abs(dx[0]):
             # Third case
             info[0] = 3
             bound = True
-            theta = 3 * (Mcsrch.fx[0] - fp) / (stp[0] - Mcsrch.stx[0]) + dx[0] + dp
+            theta = 3 * (Mcsrch.fx[0] - fp) / \
+                (stp[0] - Mcsrch.stx[0]) + dx[0] + dp
             s = Mcsrch.max3(np.abs(theta), np.abs(dx[0]), np.abs(dp))
-            gamma = s * np.sqrt(np.max([0, Mcsrch.sqr(theta / s) - (dx[0] / s) * (dp / s)]));
+            gamma = s * \
+                np.sqrt(
+                    np.max([0, Mcsrch.sqr(theta / s) - (dx[0] / s) * (dp / s)]))
             if stp[0] > Mcsrch.stx[0]:
-                gamma = - gamma;
+                gamma = - gamma
             p = (gamma - dp) + theta
             q = (gamma + (dx[0] - dp)) + gamma
             r = p / q
@@ -284,15 +291,17 @@ class Mcsrch:
             info[0] = 4
             bound = False
             if Mcsrch.brackt[0]:
-                theta = 3 * (fp - Mcsrch.fy[0]) / (Mcsrch.sty[0] - stp[0]) + dy[0] + dp
+                theta = 3 * (fp - Mcsrch.fy[0]) / \
+                    (Mcsrch.sty[0] - stp[0]) + dy[0] + dp
                 s = Mcsrch.max3(np.abs(theta), np.abs(dy[0]), np.abs(dp))
-                gamma = s * np.sqrt(Mcsrch.sqr(theta / s) - (dy[0] / s) * (dp / s))
+                gamma = s * np.sqrt(Mcsrch.sqr(theta / s) -
+                                    (dy[0] / s) * (dp / s))
                 if stp[0] > Mcsrch.sty[0]:
                     gamma = - gamma
-                p = ( gamma - dp ) + theta
-                q = ( ( gamma - dp ) + gamma ) + dy[0]
+                p = (gamma - dp) + theta
+                q = ((gamma - dp) + gamma) + dy[0]
                 r = p / q
-                stpc = stp[0] + r * ( Mcsrch.sty[0] - stp[0] )
+                stpc = stp[0] + r * (Mcsrch.sty[0] - stp[0])
                 stpf = stpc
             elif stp[0] > Mcsrch.stx[0]:
                 stpf = stpmax
@@ -323,9 +332,10 @@ class Mcsrch:
 
         if Mcsrch.brackt[0] and bound:
             if Mcsrch.sty[0] > Mcsrch.stx[0]:
-                stp[0] = np.min([Mcsrch.stx[0] + 0.66 * (Mcsrch.sty[0] - Mcsrch.stx[0]), stp[0]])
+                stp[0] = np.min(
+                    [Mcsrch.stx[0] + 0.66 * (Mcsrch.sty[0] - Mcsrch.stx[0]), stp[0]])
             else:
-                stp[0] = np.max([Mcsrch.stx[0] + 0.66 * (Mcsrch.sty[0] - Mcsrch.stx[0]), stp[0]])
+                stp[0] = np.max(
+                    [Mcsrch.stx[0] + 0.66 * (Mcsrch.sty[0] - Mcsrch.stx[0]), stp[0]])
 
         return
-

@@ -1,6 +1,6 @@
 import numpy as np
 
-from LARA_LDA_Python.src import Utilities
+from src import Utilities
 
 
 class LRR_Model:
@@ -11,10 +11,11 @@ class LRR_Model:
         self.m_k = k            # num of aspects
         self.m_v = v            # num of words
         self.m_mu = None        # prior for \alpha in each review
-        self.m_sigma_inv = None # precision matrix (NOT covariance!)
+        self.m_sigma_inv = None  # precision matrix (NOT covariance!)
         self.m_sigma = None     # only used for calculating inverse(\Sigma)
         self.m_beta = None      # word sentiment polarity matrix should have one bias term!
-        self.m_delta = 1        # variance of overall rating prediction (\sigma in the manual)
+        # variance of overall rating prediction (\sigma in the manual)
+        self.m_delta = 1
 
         self.m_mu = np.zeros(self.m_k, dtype=np.float64)
         self.m_sigma = np.zeros((self.m_k, self.m_k), dtype=np.float64)
@@ -46,7 +47,7 @@ class LRR_Model:
 
             # part 3: \sigma
             for i in range(self.m_k):
-                tmpTxt=f.readline()
+                tmpTxt = f.readline()
                 container = tmpTxt.split("\t")
                 for j in range(self.m_k):
                     self.m_sigma[i, j] = float(container[j])
@@ -54,7 +55,7 @@ class LRR_Model:
 
             # part 4: \beta
             for i in range(self.m_k):
-                tmpTxt=f.readline()
+                tmpTxt = f.readline()
                 container = tmpTxt.split("\t")
                 for j in range(self.m_v):
                     self.m_beta[i][j] = float(container[j])
@@ -93,4 +94,3 @@ class LRR_Model:
         for i in range(self.m_k):
             for j in range(self.m_k):
                 self.m_sigma_inv[i][j] = inv[i][j] * scale
-

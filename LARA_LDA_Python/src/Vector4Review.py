@@ -1,8 +1,9 @@
 import numpy as np
 
-from LRR import *
-from SpaVector import *
-from LARA_LDA_Python.src import Utilities
+from src.LRR import *
+from src.SpaVector import *
+from src import Utilities
+
 
 class Vector4Review:
     def __init__(self, review, ratings, isTrain, aspect_model):
@@ -10,7 +11,8 @@ class Vector4Review:
             return
         self.m_ID = review.ReviewID
         self.m_4train = isTrain
-        self.m_ratings = ratings    # 0: input total rating, 1: aspect0 rating, 2: aspect1 rating, ...
+        # 0: input total rating, 1: aspect0 rating, 2: aspect1 rating, ...
+        self.m_ratings = ratings
         self.m_k = len(ratings)-1
         self.m_aspectV = None
 
@@ -25,11 +27,12 @@ class Vector4Review:
                 for w in stn.stn.keys():
                     topic_word_score = aspect_model.topic_word[i][w]
                     aspect_score[i] += topic_word_score
-            s_label = np.where(aspect_score == np.max(aspect_score))[0].tolist()
+            s_label = np.where(aspect_score == np.max(aspect_score))[
+                0].tolist()
             stn.label = s_label  # with tie
 
         for stn in review.Stns:
-            if stn.label != -1:  ## remove unlabeled stns
+            if stn.label != -1:  # remove unlabeled stns
                 review.num_stn = review.num_stn + 1
                 for l in stn.label:
                     review.num_stn_aspect[l] = review.num_stn_aspect[l] + 1
@@ -39,7 +42,8 @@ class Vector4Review:
                     for l in stn.label:
                         for w in stn.stn.keys():
                             z = np.where(w == review.UniWord)[0]  # index
-                            review.num_stn_aspect_word[l, z] = review.num_stn_aspect_word[l, z] + 1
+                            review.num_stn_aspect_word[l,
+                                                       z] = review.num_stn_aspect_word[l, z] + 1
 
         self.m_aspectV = np.zeros(self.m_k, dtype=np.float64)
         aspect_word_freq = {}
@@ -134,7 +138,8 @@ class Vector4Review:
 
     def get_aspect_rating_with_v(self, beta, v):
         for i in range(self.m_k):
-            self.m_pred_cache[i] = self.m_aspectV[i].dot_product_with_offset(beta, v*i)
+            self.m_pred_cache[i] = self.m_aspectV[i].dot_product_with_offset(
+                beta, v*i)
             self.m_aspect_rating[i] = np.exp(self.m_pred_cache[i])
 
     def get_doc_length(self):
@@ -156,4 +161,3 @@ class Vector4Review:
         norm = Utilities.exp_sum(self.m_alpha_hat)
         for i in range(self.m_k):
             self.m_alpha[i] = np.exp(self.m_alpha_hat[i])/norm
-

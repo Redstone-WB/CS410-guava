@@ -1,18 +1,19 @@
 import numpy as np
 
-from LARA_LDA_Python.src.ExceptionWithIflag import ExceptionWithIflag
-from Mcsrch import *
+from src.ExceptionWithIflag import ExceptionWithIflag
+from src.Mcsrch import Mcsrch
+
 
 class LBFGS:
-    gtol = 2e-3
-    stpmin = 1e-20
-    stpmax = 1e20
 
     def __init__(self):
+        self.gtol = 2e-3
+        self.stpmin = 1e-20
+        self.stpmax = 1e20
         self.solution_cache = None
         self.gnorm = 0
         self.stp1 = 0
-        self.ftol =0
+        self.ftol = 0
         self.stp = [0.0]
         self.ys = 0
         self.yy = 0
@@ -38,9 +39,9 @@ class LBFGS:
         self.finish = False
         self.w = None
 
-
     # public static void lbfgs ( int n , int m , double[] x , double f , double[] g , boolean diagco , double[] diag , int[] iprint , double eps , double xtol , int[] iflag ) throws ExceptionWithIflag
-    def lbfgs(self, n, m, x, f, g, diagco, diag, iprint, eps, xtol, iflag):
+
+    def lbfgs_func(self, n, m, x, f, g, diagco, diag, iprint, eps, xtol, iflag):
         execute_entire_while_loop = False
 
         if self.w is None or len(self.w) != n * (2 * m + 1) + 2 * m:
@@ -58,7 +59,8 @@ class LBFGS:
                 return
 
             if self.gtol <= 0.0001:
-                print("LBFGS.lbfgs: gtol is less than or equal to 0.0001. It has been reset to 0.9.")
+                print(
+                    "LBFGS.lbfgs: gtol is less than or equal to 0.0001. It has been reset to 0.9.")
                 self.gtol = 0.9
 
             self.nfun = 1
@@ -67,7 +69,7 @@ class LBFGS:
 
             # diagco = False
             for i in range(1, n+1):
-                diag[i -1] = 1
+                diag[i - 1] = 1
 
             self.ispt = n+2*m
             self.iypt = self.ispt + n*m
@@ -76,13 +78,14 @@ class LBFGS:
                 self.w[self.ispt + i - 1] = -g[i-1] * diag[i-1]
 
             ttemp = self.ddot(n, g, 0, 1, g, 0, 1)
-            self.gnorm = np.sqrt( ttemp )
+            self.gnorm = np.sqrt(ttemp)
             self.stp1 = 1 / self.gnorm
             self.ftol = 0.0001
             self.maxfev = 100
 
             if iprint[1-1] >= 0:
-                self.lb1(iprint, iter, self.nfun, self.gnorm, n, m, x, f, g, self.stp, self.finish)
+                self.lb1(iprint, iter, self.nfun, self.gnorm,
+                         n, m, x, f, g, self.stp, self.finish)
 
             execute_entire_while_loop = True
 
@@ -94,9 +97,11 @@ class LBFGS:
                 if self.iter != 1:
                     if self.iter > m:
                         self.bound = m
-                    self.ys = self.ddot(n, self.w, self.iypt + self.npt, 1, self.w, self.ispt + self.npt, 1)
+                    self.ys = self.ddot(
+                        n, self.w, self.iypt + self.npt, 1, self.w, self.ispt + self.npt, 1)
                     # diagco = False
-                    self.yy = self.ddot(n, self.w, self.iypt + self.npt, 1, self.w, self.iypt + self.npt, 1)
+                    self.yy = self.ddot(
+                        n, self.w, self.iypt + self.npt, 1, self.w, self.iypt + self.npt, 1)
                     for i in range(1, n+1):
                         diag[i-1] = self.ys / self.yy
 
@@ -117,28 +122,34 @@ class LBFGS:
                         self.cp = self.cp - 1
                         if self.cp == -1:
                             self.cp = m - 1
-                        self.sq = self.ddot(n, self.w, self.ispt + self.cp * n, 1, self.w, 0, 1)
+                        self.sq = self.ddot(
+                            n, self.w, self.ispt + self.cp * n, 1, self.w, 0, 1)
                         self.inmc = n+m+self.cp+1
                         self.iycn = self.iypt + self.cp * n
-                        self.w[self.inmc - 1] = self.w[n + self.cp + 1 - 1] * self.sq
-                        self.daxpy(n, - self.w[self.inmc - 1], self.w, self.iycn, 1, self.w, 0, 1)
+                        self.w[self.inmc - 1] = self.w[n +
+                                                       self.cp + 1 - 1] * self.sq
+                        self.daxpy(n, - self.w[self.inmc - 1],
+                                   self.w, self.iycn, 1, self.w, 0, 1)
 
                     for i in range(1, n+1):
                         self.w[i - 1] = diag[i - 1] * self.w[i - 1]
 
                     for i in range(1, self.bound+1):
-                        self.yr = self.ddot(n, self.w, self.iypt + self.cp * n, 1, self.w, 0, 1)
+                        self.yr = self.ddot(
+                            n, self.w, self.iypt + self.cp * n, 1, self.w, 0, 1)
                         self.beta = self.w[n + self.cp + 1 - 1] * self.yr
                         self.inmc = n + m + self.cp + 1
                         self.beta = self.w[self.inmc - 1] - self.beta
-                        self.iscn = self.ispt + self.cp * n;
-                        self.daxpy(n, self.beta, self.w, self.iscn, 1, self.w, 0, 1)
+                        self.iscn = self.ispt + self.cp * n
+                        self.daxpy(n, self.beta, self.w,
+                                   self.iscn, 1, self.w, 0, 1)
                         self.cp += 1
                         if self.cp == m:
                             self.cp = 0
 
                     for i in range(1, n+1):
-                        self.w[self.ispt + self.point * n + i - 1] = self.w[i - 1]
+                        self.w[self.ispt + self.point *
+                               n + i - 1] = self.w[i - 1]
 
                 self.nfev[0] = 0
                 self.stp[0] = 1
@@ -149,7 +160,7 @@ class LBFGS:
                     self.w[i - 1] = g[i - 1]
 
             Mcsrch.mcsrch(n, x, f, g, self.w, self.ispt + self.point * n, self.stp, self.ftol, xtol,
-                          self.maxfev, self.info, self.nfev, diag)
+                          self.maxfev, self.info, self.nfev, diag, self.gtol, self.stpmin, self.stpmax)
 
             if self.info[0] == -1:
                 iflag[0] = 1
@@ -164,7 +175,8 @@ class LBFGS:
             self.npt = self.point * n
 
             for i in range(1, n+1):
-                self.w[self.ispt + self.npt + i - 1] = self.stp[0] * self.w[self.ispt + self.npt + i - 1]
+                self.w[self.ispt + self.npt + i - 1] = self.stp[0] * \
+                    self.w[self.ispt + self.npt + i - 1]
                 self.w[self.iypt + self.npt + i - 1] = g[i - 1] - self.w[i - 1]
 
             self.point = self.point + 1
@@ -179,7 +191,8 @@ class LBFGS:
                 self.finish = True
 
             if iprint[1 - 1] >= 0:
-                self.lb1(iprint, iter, self.nfun, self.gnorm, n, m, x, f, g, self.stp, self.finish)
+                self.lb1(iprint, iter, self.nfun, self.gnorm,
+                         n, m, x, f, g, self.stp, self.finish)
 
             # Cache the current solution vector. Due to the spaghetti-like
             # nature of this code, it's not possible to quit here and return;
@@ -205,11 +218,11 @@ class LBFGS:
             ix = 1
             iy = 1
             if incx < 0:
-                ix = ( - n + 1 ) * incx + 1
+                ix = (- n + 1) * incx + 1
             if incy < 0:
-                iy = ( - n + 1 ) * incy + 1
+                iy = (- n + 1) * incy + 1
             for i in range(1, n+1):
-                dtemp = dtemp + dx[ix0+ix -1] * dy[iy0+iy -1];
+                dtemp = dtemp + dx[ix0+ix - 1] * dy[iy0+iy - 1]
                 ix = ix + incx
                 iy = iy + incy
 
@@ -218,15 +231,15 @@ class LBFGS:
         m = n % 5
         if m != 0:
             for i in range(1, m+1):
-                dtemp = dtemp + dx[ ix0+i -1] * dy [ iy0+i -1]
+                dtemp = dtemp + dx[ix0+i - 1] * dy[iy0+i - 1]
             if n < 5:
                 return dtemp
 
         mp1 = m + 1
         for i in range(mp1, n+1, 5):
             dtemp = dtemp + dx[ix0 + i - 1] * dy[iy0 + i - 1] + dx[ix0 + i + 1 - 1] * dy[iy0 + i + 1 - 1] + \
-                    dx[ix0 + i + 2 - 1] * dy[iy0 + i + 2 - 1] + dx[ix0 + i + 3 - 1] * dy[iy0 + i + 3 - 1] + \
-                    dx[ix0 + i + 4 - 1] * dy[iy0 + i + 4 - 1]
+                dx[ix0 + i + 2 - 1] * dy[iy0 + i + 2 - 1] + dx[ix0 + i + 3 - 1] * dy[iy0 + i + 3 - 1] + \
+                dx[ix0 + i + 4 - 1] * dy[iy0 + i + 4 - 1]
             # print("{}: dtemp={}".format(i, dtemp))
 
         return dtemp
@@ -245,12 +258,12 @@ class LBFGS:
             iy = 1
 
             if incx < 0:
-                ix = ( -n + 1 ) * self.incx + 1
+                ix = (-n + 1) * self.incx + 1
             if incy < 0:
-                iy = ( -n + 1 ) * self.incy + 1
+                iy = (-n + 1) * self.incy + 1
 
             for i in range(1, n+1):
-                dy [ iy0+iy -1] = dy [ iy0+iy -1] + da * dx [ ix0+ix -1]
+                dy[iy0+iy - 1] = dy[iy0+iy - 1] + da * dx[ix0+ix - 1]
                 ix = ix + incx
                 iy = iy + incy
             return
@@ -258,7 +271,7 @@ class LBFGS:
         m = n % 4
         if m != 0:
             for i in range(1, m+1):
-                dy[iy0 + i - 1] = dy[iy0+i -1] + da * dx[ix0+i -1]
+                dy[iy0 + i - 1] = dy[iy0+i - 1] + da * dx[ix0+i - 1]
 
             if n < 4:
                 return
@@ -301,7 +314,7 @@ if __name__ == "__main__":
         m_alphaTol = 0.01
         iflag = [0]
 
-        ret = optimizer.lbfgs(
+        ret = optimizer.lbfgs_func(
             n, m, m_alpha_hat, f, m_g_alpha, False,
             m_diag_alpha, iprint, m_alphaTol, 1e-20, iflag)
 
@@ -309,4 +322,3 @@ if __name__ == "__main__":
         AssertionError(m_g_alpha[0] == -1.313301233992803)
         AssertionError(m_diag_alpha[0] == -1.0179588329040197)
         AssertionError(iflag[0] == 1)
-

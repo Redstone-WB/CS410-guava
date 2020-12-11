@@ -1,5 +1,5 @@
+from src.Structure import Corpus
 import numpy as np
-from Structure import Corpus
 import lda
 
 
