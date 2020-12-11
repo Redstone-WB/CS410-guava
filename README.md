@@ -7,3 +7,10 @@
 - Review for whole project : 
 
 
+
+### References 
+
+- LARAM (java) : http://sifaka.cs.uiuc.edu/~wang296/
+- Preprocessing : https://github.com/tonyzhang1231/LARA_Python
+- ETC : https://github.com/ericcds/LARAM_Python
+
