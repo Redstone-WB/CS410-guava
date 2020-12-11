@@ -1,3 +1,9 @@
-# CourseProject
+# CS410 : CourseProject
 
-Please fork this repository and paste the github link of your fork on Microsoft CMT. Detailed instructions are on Coursera under Week 1: Course Project Overview/Week 9 Activities.
+- UIUC, 2020, FALL
+- Authors : Changsoo kim, Hongseok Ha
+- GuideLine for execution :
+- Execution Video :
+- Review for whole project : 
+
+
